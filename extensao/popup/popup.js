@@ -36,12 +36,14 @@ const panel = new YTB.Panel($('panel'), {
   embedded: true,
   makePlayer: (info) => (info.previewUrl ? streamPlayer(info.previewUrl) : null),
 });
-const isVideoUrl = (u) => /(youtube\.com\/(watch\?|shorts\/|live\/|embed\/)|youtu\.be\/)/.test(u || '');
+const isVideoUrl = (u) =>
+  /(youtube\.com\/(watch\?|shorts\/|live\/|embed\/)|youtu\.be\/|instagram\.com\/(p|reels?|tv)\/|tiktok\.com\/.+\/video\/|vm\.tiktok\.com\/|(x|twitter)\.com\/.+\/status\/)/.test(u || '');
+const LOGIN_ORIGINS = ['https://*.instagram.com/*', 'https://*.tiktok.com/*', 'https://*.x.com/*', 'https://*.twitter.com/*'];
 
 function showHint() {
   $('panel').replaceChildren(
-    YTB.h('p', { class: 'hint' }, 'Abra um vídeo do YouTube e clique no botão ', YTB.h('b', {}, 'Baixar'),
-      ' embaixo do player, ou cole o link acima.')
+    YTB.h('p', { class: 'hint' }, 'Abra um vídeo do YouTube, Instagram, TikTok ou X e clique neste ícone, ou cole o link acima.'),
+    YTB.h('p', { class: 'hint' }, 'Dica: clique com o botão direito num vídeo ou link e escolha ', YTB.h('b', {}, 'Baixar com YT Baixador'), '.')
   );
 }
 
@@ -85,19 +87,24 @@ async function loadStatus() {
     $('folder-path').textContent = settings.folder || host.defaultFolder;
     $('folder-path').title = $('folder-path').textContent;
     $('prefer-h264').checked = settings.preferH264;
+    $('sponsorblock').checked = settings.sponsorblock;
+    $('normalize').checked = settings.normalize;
+    $('use-cookies').checked = settings.useCookies;
     $('notify').checked = settings.notify;
     $('engine').textContent = engineText(host);
-    if (!host.ytdlp || !host.ffmpeg) {
-      banner(['Falta instalar parte do programa auxiliar. Rode o ', YTB.h('b', {}, 'instalar.bat'), ' de novo.']);
+    if (!String(host.host).startsWith('2')) {
+      banner(['O programa auxiliar está desatualizado. Baixe e rode o ', YTB.h('b', {}, 'YTBaixador-Instalador.exe'), ' de novo.']);
+    } else if (!host.ytdlp || !host.ffmpeg) {
+      banner(['Falta instalar parte do programa auxiliar. Rode o ', YTB.h('b', {}, 'YTBaixador-Instalador.exe'), ' de novo.']);
     } else if (!host.js) {
-      banner(['Instale o Node.js ou o Deno: o YouTube exige um deles para liberar os downloads.']);
+      banner(['Falta o Deno ou o Node.js, que o YouTube exige. Rode o ', YTB.h('b', {}, 'YTBaixador-Instalador.exe'), ' de novo.']);
     }
   } catch (e) {
     $('engine').textContent = 'indisponível';
     if (e.code === 'NO_HOST') {
       banner([
         YTB.h('b', {}, 'Falta um passo: '),
-        'rode o ', YTB.h('b', {}, 'instalar.bat'), ' da pasta do projeto e depois reinicie o navegador.',
+        'baixe e rode o ', YTB.h('b', {}, 'YTBaixador-Instalador.exe'), ' (fica no GitHub do projeto) e reabra este popup.',
       ], 'bad');
     } else {
       banner([e.message], 'bad');
@@ -119,6 +126,24 @@ $('prefer-h264').addEventListener('change', (e) =>
   client.request('setSettings', { patch: { preferH264: e.target.checked } }));
 $('notify').addEventListener('change', (e) =>
   client.request('setSettings', { patch: { notify: e.target.checked } }));
+$('sponsorblock').addEventListener('change', (e) =>
+  client.request('setSettings', { patch: { sponsorblock: e.target.checked } }));
+$('normalize').addEventListener('change', (e) =>
+  client.request('setSettings', { patch: { normalize: e.target.checked } }));
+
+$('use-cookies').addEventListener('change', async (e) => {
+  const box = e.target;
+  let on = box.checked;
+  if (on) {
+    try {
+      on = await chrome.permissions.request({ permissions: ['cookies'], origins: LOGIN_ORIGINS });
+    } catch {
+      on = false;
+    }
+    box.checked = on;
+  }
+  await client.request('setSettings', { patch: { useCookies: on } });
+});
 
 $('update-engine').addEventListener('click', async () => {
   const btn = $('update-engine');
@@ -179,10 +204,12 @@ $('credit').addEventListener('click', async () => {
 });
 
 (async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (isVideoUrl(tab?.url)) {
-    $('url').value = tab.url;
-    panel.load(tab.url);
+  const fromMenu = new URLSearchParams(location.search).get('url');
+  const [tab] = fromMenu ? [] : await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = fromMenu || (isVideoUrl(tab?.url) ? tab.url : null);
+  if (url) {
+    $('url').value = url;
+    panel.load(url);
   } else {
     showHint();
   }

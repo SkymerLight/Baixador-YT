@@ -2,12 +2,19 @@
   "manifest_version": 3,
   "name": "YT Baixador",
   "short_name": "YT Baixador",
-  "version": "1.2.0",
-  "description": "Baixe vídeos e áudios do YouTube direto da página. Criador: Skymer#9220",
+  "version": "2.0.0",
+  "description": "Baixe vídeos e áudios do YouTube, Instagram, TikTok e X direto da página. Criador: Skymer#9220",
   "author": "Skymer#9220",
   "homepage_url": "https://github.com/SkymerLight/Baixador-YT",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqET4wsnjJi1I9X3xEoYbdmD/FMPuXmzsnzDYpCOyGdkQRsvwmuYrDLEFH8VvIfxOa2FG/BItZG2je0xetqbMpcTkqkl6ADQOP3SsTTUgoHYUwEYJdNlGDdxR7nHEOfbPEp29dSvHLnbqx0fGM4lb70W4EMABfkpgk8C0giYbyER1po1+WiMOR6pVFauHvNHGte8bDPDV7FRjWmmGU5aVlyoa9JC9qpDBqWwdJj6reWADjLkgMO1CBwrn40d1j8II1VQpABU/rrRVgU6PUq4FpWB4sIifby2j67l/CN5mzEfbzFor/fKmGpI4Fars3vo6yXTYgdSGICd69c63m3gGTwIDAQAB",
-  "permissions": ["nativeMessaging", "storage", "notifications", "activeTab"],
+  "permissions": ["nativeMessaging", "storage", "notifications", "activeTab", "contextMenus"],
+  "optional_permissions": ["cookies"],
+  "optional_host_permissions": [
+    "https://*.instagram.com/*",
+    "https://*.tiktok.com/*",
+    "https://*.x.com/*",
+    "https://*.twitter.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

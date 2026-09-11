@@ -11,6 +11,9 @@ const DEFAULT_SETTINGS = {
   lastMode: 'video',
   lastQuality: 1080,
   lastAudio: 'm4a',
+  sponsorblock: true,
+  normalize: true,
+  useCookies: false,
 };
 
 let hostPort = null;
@@ -38,13 +41,13 @@ class HostError extends Error {
 
 function translateDisconnect(message = '') {
   if (/not found/i.test(message)) {
-    return new HostError('O programa auxiliar não está instalado. Rode o arquivo instalar.bat da pasta do projeto.', 'NO_HOST');
+    return new HostError('O programa auxiliar não está instalado. Baixe e rode o YTBaixador-Instalador.exe.', 'NO_HOST');
   }
   if (/forbidden/i.test(message)) {
-    return new HostError('O programa auxiliar foi instalado para outra extensão. Rode o instalar.bat de novo.', 'NO_HOST');
+    return new HostError('O programa auxiliar foi instalado para outra extensão. Rode o YTBaixador-Instalador.exe de novo.', 'NO_HOST');
   }
   if (/exited/i.test(message)) {
-    return new HostError('O programa auxiliar fechou sozinho. Rode o instalar.bat de novo e veja o host.log.', 'HOST_CRASH');
+    return new HostError('O programa auxiliar fechou sozinho. Rode o YTBaixador-Instalador.exe de novo.', 'HOST_CRASH');
   }
   return new HostError(message || 'Conexão com o programa auxiliar perdida.', 'HOST_CRASH');
 }
@@ -193,14 +196,87 @@ function canonicalUrl(url) {
 }
 
 async function getInfo(url) {
-  const key = canonicalUrl(url);
+  const target = canonicalUrl(url);
+  const cookies = await cookiesFor(target);
+  const key = `${target}|${cookies ? 'login' : ''}`;
   const hit = infoCache.get(key);
   if (hit && Date.now() - hit.at < INFO_TTL_MS) return hit.promise;
-  const promise = callHost('info', { url: key });
+  const promise = callHost('info', { url: target, cookies });
   infoCache.set(key, { at: Date.now(), promise });
   promise.catch(() => infoCache.delete(key));
   return promise;
 }
+
+const LOGIN_SITES = [
+  { host: /(^|\.)instagram\.com$/, domains: ['instagram.com'], origins: ['https://*.instagram.com/*'] },
+  { host: /(^|\.)tiktok\.com$/, domains: ['tiktok.com'], origins: ['https://*.tiktok.com/*'] },
+  { host: /(^|\.)(x|twitter)\.com$/, domains: ['x.com', 'twitter.com'], origins: ['https://*.x.com/*', 'https://*.twitter.com/*'] },
+];
+const LOGIN_ORIGINS = LOGIN_SITES.flatMap((s) => s.origins);
+
+async function cookiesFor(url) {
+  const { useCookies } = await getSettings();
+  if (!useCookies) return undefined;
+  let host;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    return undefined;
+  }
+  const site = LOGIN_SITES.find((s) => s.host.test(host));
+  if (!site || !(await chrome.permissions.contains({ permissions: ['cookies'], origins: site.origins }))) return undefined;
+  const all = (await Promise.all(site.domains.map((domain) => chrome.cookies.getAll({ domain })))).flat();
+  if (!all.length) return undefined;
+  const lines = all.map((c) =>
+    [
+      c.hostOnly ? c.domain : `.${c.domain.replace(/^\./, '')}`,
+      c.hostOnly ? 'FALSE' : 'TRUE',
+      c.path,
+      c.secure ? 'TRUE' : 'FALSE',
+      c.expirationDate ? Math.floor(c.expirationDate) : 0,
+      c.name,
+      c.value,
+    ].join('\t')
+  );
+  return `# Netscape HTTP Cookie File\n${lines.join('\n')}\n`;
+}
+
+const MENU_PATTERNS = [
+  '*://*.youtube.com/watch*',
+  '*://*.youtube.com/shorts/*',
+  '*://youtu.be/*',
+  '*://*.instagram.com/p/*',
+  '*://*.instagram.com/reel/*',
+  '*://*.instagram.com/reels/*',
+  '*://*.tiktok.com/*/video/*',
+  '*://*.x.com/*/status/*',
+  '*://*.twitter.com/*/status/*',
+];
+
+function createMenus() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: 'ytb-link', title: 'Baixar com YT Baixador', contexts: ['link'], targetUrlPatterns: MENU_PATTERNS });
+    chrome.contextMenus.create({
+      id: 'ytb-page',
+      title: 'Baixar este vídeo com YT Baixador',
+      contexts: ['page', 'video'],
+      documentUrlPatterns: MENU_PATTERNS,
+    });
+  });
+}
+
+chrome.runtime.onInstalled.addListener(createMenus);
+chrome.runtime.onStartup.addListener(createMenus);
+chrome.contextMenus.onClicked.addListener((info) => {
+  const url = info.menuItemId === 'ytb-link' ? info.linkUrl : info.pageUrl;
+  if (!url) return;
+  chrome.windows.create({
+    url: chrome.runtime.getURL(`popup/popup.html?url=${encodeURIComponent(url)}`),
+    type: 'popup',
+    width: 440,
+    height: 780,
+  });
+});
 
 const REPO = 'SkymerLight/Baixador-YT';
 const UPDATE_TTL_MS = 6 * 60 * 60_000;
@@ -246,11 +322,14 @@ const actions = {
       section,
       folder: settings.folder || undefined,
       preferH264: settings.preferH264,
+      sponsorblock: settings.sponsorblock,
+      normalize: settings.normalize,
+      cookies: await cookiesFor(target),
     });
     const job = {
       id: jobId,
       url: target,
-      videoId: youtubeId(target),
+      videoId: meta.id || youtubeId(target),
       title: meta.title || target,
       thumbnail: meta.thumbnail || null,
       mode,
@@ -302,6 +381,8 @@ const actions = {
   async setSettings({ patch }) {
     const settings = { ...(await getSettings()), ...patch };
     await chrome.storage.local.set({ settings });
+    if ('useCookies' in patch) infoCache.clear();
+    if (patch.useCookies === false) chrome.permissions.remove({ permissions: ['cookies'], origins: LOGIN_ORIGINS }).catch(() => {});
     return settings;
   },
 

@@ -303,7 +303,7 @@
           info.video.find((v) => v.q <= settings.lastQuality)?.q ?? info.video[info.video.length - 1]?.q;
         const audio = AUDIO_OPTIONS.some((o) => o.value === settings.lastAudio) ? settings.lastAudio : 'm4a';
         if (this.makePlayer) this.usePlayer(this.makePlayer(info));
-        this.state = { phase: 'ready', info, mode, quality, audio, cut: { on: false, start: '', end: '' } };
+        this.state = { phase: 'ready', info, settings, mode, quality, audio, cut: { on: false, start: '', end: '' } };
       } catch (e) {
         if (token !== this.token) return;
         this.state = { phase: 'error', error: e.message, code: e.code };
@@ -350,7 +350,66 @@
         r.seg.style.left = ok ? `${(range.start / duration) * 100}%` : '0';
         r.seg.style.width = ok ? `${((range.end - range.start) / duration) * 100}%` : '0';
       }
+      if (r.hStart && duration) {
+        const pos = (t) => `${Math.min(100, Math.max(0, (t / duration) * 100))}%`;
+        r.hStart.style.left = pos(this.cutPoint('start'));
+        r.hEnd.style.left = pos(this.cutPoint('end'));
+      }
       this.refreshSizes();
+    }
+
+    cutPoint(key) {
+      const t = parseTime(this.state.cut[key]);
+      if (Number.isFinite(t)) return t;
+      return key === 'start' ? 0 : this.state.info.duration;
+    }
+
+    setHandle(key, t, seek) {
+      const { duration } = this.state.info;
+      const other = this.cutPoint(key === 'start' ? 'end' : 'start');
+      t = Math.round(Math.max(0, Math.min(duration, t)));
+      t = key === 'start' ? Math.min(t, other - 1) : Math.max(t, other + 1);
+      this.state.cut[key] = fmt.time(t);
+      const input = this.refs[key === 'start' ? 'inStart' : 'inEnd'];
+      if (input) input.value = this.state.cut[key];
+      this.refreshCut();
+      if (seek && this.player) this.player.seek(t);
+    }
+
+    dragHandle(key, e) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.stopPreview?.();
+      const handle = e.currentTarget;
+      const track = this.refs.track;
+      handle.setPointerCapture(e.pointerId);
+      handle.focus();
+      let lastSeek = 0;
+      const move = (ev) => {
+        const rect = track.getBoundingClientRect();
+        const t = ((ev.clientX - rect.left) / rect.width) * this.state.info.duration;
+        const seek = Date.now() - lastSeek > 150;
+        if (seek) lastSeek = Date.now();
+        this.setHandle(key, t, seek);
+      };
+      const up = (ev) => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        lastSeek = 0;
+        move(ev);
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    }
+
+    nudgeHandle(key, e) {
+      const steps = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 };
+      if (!(e.key in steps)) return;
+      e.preventDefault();
+      this.stopPreview?.();
+      this.setHandle(key, this.cutPoint(key) + steps[e.key] * (e.shiftKey ? 5 : 1), true);
     }
 
     refreshSizes() {
@@ -413,7 +472,7 @@
           quality,
           audioFormat: audio,
           section: range || undefined,
-          meta: { title: info.title, thumbnail: info.thumbnail, label },
+          meta: { id: info.id, title: info.title, thumbnail: info.thumbnail, label },
         });
         if (range && !job?.section) {
           this.client.request('cancel', { jobId: job.id }).catch(() => {});
@@ -467,9 +526,9 @@
           ? h(
               'ol',
               { class: 'ytb-steps' },
-              h('li', {}, 'Abra a pasta do projeto no Explorer.'),
-              h('li', {}, 'Dê dois cliques em ', h('b', {}, 'instalar.bat'), ' e espere terminar.'),
-              h('li', {}, 'Feche e abra o navegador de novo.')
+              h('li', {}, 'Baixe o ', h('b', {}, 'YTBaixador-Instalador.exe'), ' no GitHub do projeto.'),
+              h('li', {}, 'Dê dois cliques nele e clique em Instalar.'),
+              h('li', {}, 'Recarregue esta página.')
             )
           : null;
       return h(
@@ -522,6 +581,10 @@
             });
 
       const note = mode === 'audio' ? AUDIO_OPTIONS.find((o) => o.value === audio)?.note : null;
+      const settings = this.state.settings || {};
+      const extras = [];
+      if (settings.sponsorblock && info.site === 'Youtube' && !this.state.cut.on) extras.push('tirar os patrocínios (SponsorBlock)');
+      if (settings.normalize && mode === 'audio' && audio.startsWith('mp3')) extras.push('igualar o volume');
 
       this.refs.download = h(
         'button',
@@ -536,7 +599,9 @@
         h(
           'div',
           { class: 'ytb-video' },
-          info.thumbnail ? h('img', { class: 'ytb-thumb', src: info.thumbnail, alt: '' }) : null,
+          info.thumbnail
+            ? h('img', { class: 'ytb-thumb', src: info.thumbnail, alt: '', referrerpolicy: 'no-referrer', onerror: (e) => e.target.remove() })
+            : null,
           h(
             'div',
             { class: 'ytb-video-text' },
@@ -553,7 +618,8 @@
         h('div', { class: 'ytb-opts' }, options),
         note ? h('p', { class: 'ytb-note' }, note) : null,
         this.renderCut(),
-        this.refs.download
+        this.refs.download,
+        extras.length ? h('p', { class: 'ytb-note ytb-extras' }, `Também vai ${extras.join(' e ')}.`) : null
       );
     }
 
@@ -581,6 +647,7 @@
           spellcheck: 'false',
           'aria-label': label,
           oninput: (e) => this.setCut({ [key]: e.target.value }),
+          onkeydown: (e) => e.key === 'Enter' && e.target.blur(),
           onchange: (e) => {
             const t = parseTime(e.target.value);
             if (t != null && !Number.isNaN(t)) e.target.value = this.state.cut[key] = fmt.time(t);
@@ -599,12 +666,27 @@
               'Agora'
             )
           : null;
+        this.refs[key === 'start' ? 'inStart' : 'inEnd'] = input;
         return h('label', { class: 'ytb-field' }, h('span', { class: 'ytb-field-label' }, label), h('span', { class: 'ytb-field-row' }, input, now));
       };
 
+      const handle = (key, label) =>
+        h('div', {
+          class: `ytb-handle ytb-handle-${key}`,
+          role: 'slider',
+          tabindex: '0',
+          'aria-label': label,
+          title: `${label}: arraste ou use as setas`,
+          onpointerdown: (e) => this.dragHandle(key, e),
+          onkeydown: (e) => this.nudgeHandle(key, e),
+          onclick: (e) => e.stopPropagation(),
+        });
+
       this.refs.seg = h('div', { class: 'ytb-seg' });
       this.refs.head = this.player ? h('div', { class: 'ytb-head-mark' }) : null;
-      const timeline = h(
+      this.refs.hStart = handle('start', 'Início do trecho');
+      this.refs.hEnd = handle('end', 'Fim do trecho');
+      const timeline = (this.refs.track = h(
         'div',
         {
           class: `ytb-timeline${this.player ? ' is-clickable' : ''}`,
@@ -616,8 +698,10 @@
           },
         },
         this.refs.seg,
-        this.refs.head
-      );
+        this.refs.head,
+        this.refs.hStart,
+        this.refs.hEnd
+      ));
 
       const controls = !!this.player?.controls;
       this.refs.cutError = h('span', { class: 'ytb-cut-info' });
@@ -735,7 +819,12 @@
 .ytb-mini-btn { display: inline-flex; align-items: center; gap: 4px; padding: 0 9px; height: 34px; border-radius: 8px;
   background: var(--bg) !important; border: 1.5px solid var(--line) !important; font-size: 12.5px !important; flex: none; }
 .ytb-mini-btn:hover { border-color: var(--fg) !important; }
-.ytb-timeline { position: relative; height: 8px; border-radius: 4px; background: var(--chip-hover); }
+.ytb-timeline { position: relative; height: 8px; margin: 6px 9px; border-radius: 4px; background: var(--chip-hover); touch-action: none; }
+.ytb-handle { position: absolute; top: 50%; width: 18px; height: 18px; margin-left: -9px; transform: translateY(-50%);
+  border-radius: 50%; background: #fff; border: 3px solid var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  cursor: ew-resize; touch-action: none; z-index: 2; }
+.ytb-handle:hover, .ytb-handle:focus-visible { transform: translateY(-50%) scale(1.15); outline: none; box-shadow: 0 0 0 4px rgba(225,0,45,.25); }
+.ytb-extras { margin-top: -4px; text-align: center; }
 .ytb-timeline.is-clickable { cursor: pointer; }
 .ytb-seg { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
 .ytb-head-mark { position: absolute; top: -4px; width: 3px; height: 16px; margin-left: -1.5px; border-radius: 2px; background: var(--fg); pointer-events: none; }

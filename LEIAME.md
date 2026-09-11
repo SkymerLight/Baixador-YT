@@ -1,108 +1,124 @@
 # YT Baixador
 
-Extensão para Edge/Chrome que coloca um botão **Baixar** nos vídeos do YouTube.
-Você escolhe vídeo (144p até 4K) ou só áudio (M4A, Opus, MP3, WAV ou FLAC), pode
-recortar só um trecho, e o arquivo vai direto para a sua pasta Downloads. Nada passa
-por site de terceiros.
+Extensão para Edge/Chrome que baixa vídeos e áudios do **YouTube, TikTok, X e Instagram**.
+Você escolhe vídeo (144p até 4K) ou só áudio (M4A, Opus, MP3, WAV ou FLAC), pode recortar
+só um trecho, e o arquivo vai direto para a sua pasta Downloads. Nada passa por site de terceiros.
 
 Criador: Skymer#9220 (Discord)
 
-## Como funciona
+## Instalação
 
-```
-YouTube (botão Baixar) ─┐
-                        ├─> extensão ──(Native Messaging)──> host.py ──> yt-dlp + FFmpeg ──> Downloads
-Popup (colar link) ─────┘
-```
+1. Baixe o **[YTBaixador-Instalador.exe](https://github.com/SkymerLight/Baixador-YT/raw/main/dist/YTBaixador-Instalador.exe)**.
+2. Dê dois cliques nele. Se o Windows mostrar "O Windows protegeu o computador", clique em
+   **Mais informações > Executar assim mesmo** (o aviso aparece porque o instalador não tem
+   assinatura digital paga).
+3. Clique em **Instalar** e espere. Ele baixa o motor de download e o que mais faltar.
+4. Na tela final, siga os passos: abrir a página de extensões, ligar o **Modo de desenvolvedor**,
+   clicar em **Carregar sem compactação** e escolher a pasta que o instalador mostra
+   (tem um botão que copia o caminho).
 
-- **extensao/**: a extensão em si (é essa pasta que você carrega no navegador).
-- **host/**: o programa auxiliar. O navegador abre ele sozinho quando precisa e fecha
-  depois de 1 minuto parado. Só esta extensão tem permissão de falar com ele.
-- O yt-dlp faz o trabalho pesado (decifrar o YouTube); o FFmpeg junta vídeo + áudio,
-  recorta e converte. Uma extensão sozinha não consegue mais fazer isso: o YouTube bloqueia.
-
-## Instalação (uma vez só)
-
-1. No GitHub, clique em **Code > Download ZIP** e extraia numa pasta fixa (tipo `Documentos`).
-   Não apague essa pasta depois: o navegador carrega a extensão direto dela.
-2. Dê dois cliques em **instalar.bat** e espere terminar. Ele instala o que faltar
-   (Python, yt-dlp, FFmpeg e Deno) e registra o programa no Edge, Chrome, Brave e Chromium.
-3. Abra `edge://extensions` (ou `chrome://extensions`), ligue o **Modo de desenvolvedor**,
-   clique em **Carregar sem compactação** e escolha a pasta `extensao`.
-
+Não precisa de Python, nem de administrador. Tudo fica em `%LOCALAPPDATA%\YTBaixador`.
 Precisa de Windows 10 ou 11.
 
 ## Uso
 
-- **No YouTube:** abra um vídeo e clique em **YT Baixador**, ao lado de "Compartilhar"
+- **No YouTube:** clique em **YT Baixador**, ao lado de "Compartilhar"
   (não confunda com o "Baixar" do próprio YouTube, que é o download offline do Premium).
   Nos Shorts o botão fica flutuando no canto de baixo.
-- **Pelo ícone da extensão:** cole qualquer link do YouTube. Também mostra o histórico
-  de downloads e as configurações.
+- **Botão direito:** em qualquer vídeo ou link do YouTube, TikTok, X ou Instagram, escolha
+  **Baixar com YT Baixador**. Abre uma janelinha já com o vídeo carregado.
+- **Ícone da extensão:** abre com o vídeo da aba atual, ou cole um link. Também mostra o
+  histórico de downloads e as configurações.
 
 ### Recortar um trecho
 
-Ligue **Recortar só um trecho**, digite o início e o fim (tipo `1:30` e `2:45`) e baixe.
-Só o trecho é baixado, então fica rápido. Antes de baixar dá para conferir:
-- **Tocar trecho**: toca só o trecho e pausa sozinho no fim;
-- **Agora**: usa o ponto que está tocando como início ou fim;
-- clicar na barrinha: pula para aquele ponto.
+Ligue **Recortar só um trecho** e escolha o início e o fim:
+- **arraste as bolinhas** da barra (o vídeo acompanha para você ver onde está);
+- ou digite (tipo `1:30` e `2:45`);
+- ou use **Agora** para pegar o ponto que está tocando.
 
-No painel da página do vídeo a prévia usa o próprio player do YouTube (com imagem).
-No popup a prévia é só o áudio, e tem também o botão **Ouvir** para tocar livremente e
-achar o ponto certo.
+**Tocar trecho** toca só aquele pedaço e pausa sozinho no fim. No popup a prévia é só o áudio
+e tem também o botão **Ouvir**; no painel da página do vídeo a prévia usa o próprio player.
+Só o trecho é baixado, então fica rápido.
 
 ### Qual áudio escolher?
 
-O YouTube entrega o áudio em ~130 kbps. **M4A** (o "MP4 de áudio") e **Opus** são esse
-áudio original, sem conversão: são a melhor qualidade possível. MP3 de 320 kbps não soa
-melhor, só fica maior; use MP3 quando o aparelho só tocar MP3. WAV e FLAC são para editar.
+O YouTube entrega o áudio em ~130 kbps. **M4A** (o "MP4 de áudio") e **Opus** são esse áudio
+original, sem conversão: são a melhor qualidade possível. MP3 de 320 kbps não soa melhor, só
+fica maior; use MP3 quando o aparelho só tocar MP3. WAV e FLAC são para editar.
 
 ### Configurações (engrenagem no popup)
 
-- **Pasta de destino**: padrão é Downloads.
-- **Priorizar H.264**: ligado, o vídeo toca em qualquer player e celular. Acima de 1080p o
-  YouTube só oferece VP9/AV1, então nesses casos ele usa o que tiver.
-- **Motor de download > Atualizar**: atualiza o yt-dlp. Faça isso quando algum download
-  começar a falhar: normalmente é o YouTube que mudou algo e o yt-dlp já tem a correção.
-- **Extensão > Procurar**: confere se tem versão nova no GitHub.
+| Opção | O que faz |
+| --- | --- |
+| Pasta de destino | Onde os arquivos são salvos (padrão: Downloads). |
+| Priorizar H.264 | O vídeo toca em qualquer player e celular. Acima de 1080p o YouTube só tem VP9/AV1. |
+| Tirar patrocínios | Remove o "esse vídeo é patrocinado por..." dos vídeos do YouTube, usando o SponsorBlock. Não vale quando o recorte está ligado. |
+| Igualar o volume das músicas | Deixa os MP3 no mesmo volume (-14 LUFS, o padrão do Spotify e do YouTube). |
+| Usar meu login do navegador | Para posts que só abrem logado (quase todo o Instagram, alguns do X e TikTok). O navegador pede permissão na primeira vez. Os cookies desses sites vão só para o programa no seu PC e são apagados logo depois. |
+| Motor de download > Atualizar | Atualiza o yt-dlp. Faça isso quando algum download começar a falhar. |
+| Extensão > Procurar | Confere se tem versão nova no GitHub. |
+
+## Sites
+
+| Site | Sem login | Com "Usar meu login do navegador" |
+| --- | --- | --- |
+| YouTube | Funciona | Libera vídeos com restrição de idade* |
+| TikTok | Funciona (alguns posts são bloqueados por país) | Funciona |
+| X (Twitter) | Funciona para posts públicos | Libera posts que pedem login |
+| Instagram | Quase sempre pede login | Funciona |
+
+\* O login do YouTube não é enviado; a opção vale só para Instagram, X e TikTok.
 
 ## Atualizações
 
 A extensão confere o GitHub a cada 6 horas. Quando tem versão nova, aparece
-**Atualizar agora** no popup: o programa auxiliar baixa a versão nova do GitHub, troca os
-arquivos e a extensão recarrega sozinha. Depois é só recarregar as abas do YouTube.
-
-### Para publicar uma versão nova (criador)
-
-1. Faça as mudanças e aumente o `"version"` em `extensao/manifest.json` (ex.: 1.1.0 para 1.2.0).
-2. Mande para o GitHub (`git commit` + `git push`).
-
-Pronto: em até 6 horas todo mundo vê o aviso. A cópia com a pasta `.git` (a de
-desenvolvimento) não se atualiza pelo botão, para não apagar mudanças que ainda não foram
-enviadas; nela use `git pull`.
+**Atualizar agora** no popup: o programa auxiliar baixa a versão nova, troca os arquivos
+(inclusive ele mesmo) e a extensão recarrega sozinha. Depois é só recarregar as abas abertas.
 
 ## Problemas comuns
 
 | Mensagem | O que fazer |
 | --- | --- |
-| "O programa auxiliar não está instalado" | Rode o `instalar.bat` e reinicie o navegador. |
-| "Recarregue a página (F5)" | A extensão foi atualizada; recarregue a aba do YouTube. |
-| "O recorte não foi aplicado... versão antiga" | Em `edge://extensions`, clique em **Recarregar** no YT Baixador. Acontece quando os arquivos mudam no disco e o navegador ainda roda a versão anterior. |
-| Erro 403 / "verificação anti-robô" | Clique em **Atualizar** no motor de download e tente de novo. |
-| "Restrição de idade" / "Vídeo privado" | O YouTube exige login para esse vídeo; não é suportado. |
+| "O programa auxiliar não está instalado" | Rode o `YTBaixador-Instalador.exe`. |
+| "Recarregue a página (F5)" | A extensão foi atualizada; recarregue a aba. |
+| "O recorte não foi aplicado... versão antiga" | Em `edge://extensions`, clique em **Recarregar** no YT Baixador. |
+| Erro 403 / "verificação anti-robô" | Engrenagem > Motor de download > **Atualizar** e tente de novo. |
+| "Só abre com login" | Ligue **Usar meu login do navegador** e entre na sua conta do site no navegador. |
+| A extensão sumiu ou ficou desativada | Deixe o **Modo de desenvolvedor** ligado na página de extensões. |
 
-O log do programa auxiliar fica em `%LOCALAPPDATA%\YTBaixador\host.log`.
-Para testar sem o navegador: `%LOCALAPPDATA%\YTBaixador\venv\Scripts\python.exe %LOCALAPPDATA%\YTBaixador\testar.py LINK`.
+Os registros ficam em `%LOCALAPPDATA%\YTBaixador\host.log` e `instalador.log`.
 
 ## Desinstalar
 
-Rode **desinstalar.bat** e remova a extensão em `edge://extensions`. Seus downloads, o
-FFmpeg, o Python e o Node.js ficam onde estão.
+Rode o `YTBaixador-Instalador.exe` de novo e clique em **Desinstalar**. Depois remova a
+extensão em `edge://extensions`. Seus downloads continuam onde estavam.
 
-## Detalhes técnicos
+## Segurança
 
+- O instalador só baixa programas das páginas oficiais no GitHub (yt-dlp, FFmpeg do projeto
+  yt-dlp e Deno) e confere o código SHA-256 de cada um antes de usar. Se não bater, apaga e para.
+- Só esta extensão consegue conversar com o programa auxiliar (ID fixo no registro do navegador).
+- A atualização automática só aceita pacotes deste repositório com a mesma chave da extensão.
+- Quem publica neste repositório consegue mandar código para todo mundo que usa: deixe a
+  verificação em duas etapas ligada na conta do GitHub.
+
+## Para desenvolver
+
+```
+extensao/     a extensão (Manifest V3)
+host/         programa auxiliar em C# (Host.cs), fala com a extensão por Native Messaging
+instalador/   instalador em C# (Instalador.cs), ícone e manifesto do Windows
+dist/         os .exe prontos (o botão "Atualizar agora" baixa o host daqui)
+build.ps1     compila tudo com o compilador que já vem no Windows (.NET Framework 4.8)
+```
+
+- Compilar: `powershell -ExecutionPolicy Bypass -File build.ps1`
+- Testar o programa auxiliar pelo terminal:
+  `%LOCALAPPDATA%\YTBaixador\YTBaixador-Host.exe --test LINK [720 | mp3-320 | m4a] [section=90-100] [sponsorblock=true]`
+- Publicar uma versão: aumente o `"version"` em `extensao/manifest.json`, rode o `build.ps1`,
+  faça commit (incluindo a pasta `dist/`) e `git push`. Em até 6 horas todo mundo vê o aviso.
+- A cópia de desenvolvimento (com `.git`) não se atualiza pelo botão, para não apagar mudanças
+  que ainda não foram enviadas.
 - O ID da extensão é fixo (`enedkkbdeanincbhpmaokfjmhjlcpmop`) por causa do campo `key` no
-  `manifest.json`. Se apagar esse campo, o ID muda e o programa auxiliar para de aceitar a extensão.
-- A atualização automática só aceita um pacote do repositório `SkymerLight/Baixador-YT` que
-  tenha a mesma `key`, então não dá para trocar a extensão por outra.
+  `manifest.json`. Não apague esse campo.
