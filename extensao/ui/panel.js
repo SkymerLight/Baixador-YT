@@ -168,6 +168,51 @@
   };
   YTB.icon = icon;
 
+  // ---------------------------------------------------------- player da prévia
+
+  // Adaptador sobre um <video>/<audio>: usado com o player do YouTube (na página) e com o áudio do popup.
+  YTB.mediaPlayer = (getMedia) => ({
+    now: () => getMedia()?.currentTime ?? 0,
+    seek(t) {
+      const m = getMedia();
+      if (m) m.currentTime = t;
+    },
+    // Toca de `start` até `end` e pausa sozinho no fim. Devolve a função que interrompe.
+    playRange(start, end, onStop) {
+      const m = getMedia();
+      if (!m) return () => {};
+      let raf = 0;
+      let done = false;
+      const finish = (pause) => {
+        if (done) return;
+        done = true;
+        cancelAnimationFrame(raf);
+        m.removeEventListener('pause', onPause);
+        if (pause) m.pause();
+        onStop();
+      };
+      const onPause = () => finish(false);
+      const tick = () => {
+        if (m.currentTime >= end) return finish(true);
+        if (m.currentTime < start - 1) return finish(false); // a pessoa pulou para outro ponto
+        raf = requestAnimationFrame(tick);
+      };
+      m.currentTime = start;
+      m.play().catch(() => finish(false));
+      m.addEventListener('pause', onPause);
+      raf = requestAnimationFrame(tick);
+      return () => finish(true);
+    },
+    onTime(cb) {
+      const m = getMedia();
+      if (!m) return () => {};
+      const events = ['timeupdate', 'play', 'pause', 'seeked'];
+      const handler = () => cb(m.currentTime);
+      events.forEach((e) => m.addEventListener(e, handler));
+      return () => events.forEach((e) => m.removeEventListener(e, handler));
+    },
+  });
+
   // ---------------------------------------------------------- cartão de download
 
   function statusText(job) {
@@ -232,24 +277,32 @@
 
   // ---------------------------------------------------------- painel
 
-  // player (opcional): { now(), seek(t), playRange(a, b, onStop) -> stop(), onTime(cb) -> unsubscribe }
+  // player: adaptador do YTB.mediaPlayer (na página do YouTube).
+  // makePlayer(info): cria um player para cada vídeo carregado (no popup); ele tem controls/play/pause/destroy.
   YTB.Panel = class {
-    constructor(root, { client, onClose, embedded = false, player = null }) {
+    constructor(root, { client, onClose, embedded = false, player = null, makePlayer = null }) {
       this.root = root;
       this.client = client;
       this.onClose = onClose;
       this.embedded = embedded;
-      this.player = player;
+      this.makePlayer = makePlayer;
       this.refs = {};
       this.state = { phase: 'idle' };
       this.unsub = client.subscribe(() => this.renderJobs());
-      this.unTime = player?.onTime((t) => this.moveHead(t));
+      this.usePlayer(player);
+    }
+
+    usePlayer(player) {
+      this.unTime?.();
+      if (this.makePlayer && this.player !== player) this.player?.destroy?.();
+      this.player = player;
+      this.unTime = player?.onTime((t) => this.onPlayerTime(t));
     }
 
     destroy() {
       this.stopPreview?.();
       this.unsub();
-      this.unTime?.();
+      this.usePlayer(null);
       this.root.replaceChildren();
     }
 
@@ -269,6 +322,7 @@
         const quality =
           info.video.find((v) => v.q <= settings.lastQuality)?.q ?? info.video[info.video.length - 1]?.q;
         const audio = AUDIO_OPTIONS.some((o) => o.value === settings.lastAudio) ? settings.lastAudio : 'm4a';
+        if (this.makePlayer) this.usePlayer(this.makePlayer(info));
         this.state = { phase: 'ready', info, mode, quality, audio, cut: { on: false, start: '', end: '' } };
       } catch (e) {
         if (token !== this.token) return;
@@ -327,9 +381,21 @@
       for (const [el, size] of this.refs.sizes || []) el.textContent = size();
     }
 
-    moveHead(t) {
+    onPlayerTime(t) {
       const { duration } = this.state.info || {};
       if (this.refs.head && duration) this.refs.head.style.left = `${Math.min(100, (t / duration) * 100)}%`;
+      if (this.refs.clock) this.refs.clock.textContent = `${fmt.time(t)} / ${fmt.time(duration)}`;
+      if (this.refs.free) {
+        const playing = !this.player.paused() && !this.stopPreview;
+        this.refs.free.replaceChildren(icon(playing ? 'pause' : 'play', 18), playing ? 'Pausar' : 'Ouvir');
+      }
+    }
+
+    // Toca/pausa livremente (só no popup), para achar o ponto e usar o botão "Agora".
+    toggleFree() {
+      if (this.stopPreview) this.stopPreview();
+      if (this.player.paused()) this.player.play();
+      else this.player.pause();
     }
 
     togglePreview() {
@@ -339,9 +405,11 @@
       const stop = this.player.playRange(range.start, range.end, () => {
         this.stopPreview = null;
         this.paintPreviewButton();
+        this.onPlayerTime(this.player.now());
       });
       this.stopPreview = () => stop();
       this.paintPreviewButton();
+      this.onPlayerTime(this.player.now());
     }
 
     paintPreviewButton() {
@@ -366,7 +434,7 @@
       this.stopPreview?.();
       this.set({ starting: true });
       try {
-        await this.client.request('download', {
+        const job = await this.client.request('download', {
           url: info.url,
           mode,
           quality,
@@ -374,6 +442,13 @@
           section: range || undefined,
           meta: { title: info.title, thumbnail: info.thumbnail, label },
         });
+        // O popup lê os arquivos novos do disco, mas o service worker só troca ao recarregar a extensão.
+        // Se ele for antigo, o recorte some no caminho: cancela em vez de baixar o vídeo inteiro.
+        if (range && !job?.section) {
+          this.client.request('cancel', { jobId: job.id }).catch(() => {});
+          alert('O recorte não foi aplicado porque o navegador ainda está rodando a versão antiga da extensão.\n\n' +
+            'Abra edge://extensions, clique em "Recarregar" no YT Baixador e tente de novo.');
+        }
       } catch (e) {
         alert(e.message);
       }
@@ -411,7 +486,7 @@
       if (s.phase === 'ready') {
         this.refreshCut();
         this.paintPreviewButton();
-        if (this.player) this.moveHead(this.player.now());
+        if (this.player) this.onPlayerTime(this.player.now());
       }
       this.renderJobs();
     }
@@ -575,10 +650,22 @@
         this.refs.head
       );
 
+      const controls = !!this.player?.controls;
       this.refs.cutError = h('span', { class: 'ytb-cut-info' });
+      this.refs.clock = controls ? h('span', { class: 'ytb-clock' }) : null;
+      this.refs.free = controls
+        ? h('button', { class: 'ytb-btn ytb-btn-ghost small', onclick: () => this.toggleFree() })
+        : null;
       this.refs.preview = this.player
         ? h('button', { class: 'ytb-btn ytb-btn-ghost small', onclick: () => this.togglePreview() })
         : null;
+
+      const notes = [];
+      if (!this.player) notes.push('Prévia indisponível para este vídeo.');
+      else if (controls && mode === 'video') {
+        notes.push('A prévia aqui é só o áudio. Para ver a imagem, use o botão YT Baixador na página do vídeo.');
+      }
+      if (mode === 'video') notes.push('Recortar vídeo leva um pouco mais de tempo: o trecho é recodificado para cortar no segundo exato.');
 
       return h(
         'div',
@@ -586,12 +673,13 @@
         toggle,
         h('div', { class: 'ytb-cut-grid' }, field('start', 'Início', '0:00'), field('end', 'Fim', fmt.time(info.duration))),
         timeline,
-        h('div', { class: 'ytb-cut-foot' }, this.refs.cutError, this.refs.preview),
-        !this.player
-          ? h('p', { class: 'ytb-note' }, 'Para ouvir o trecho antes de baixar, use o botão Baixar dentro do YouTube.')
-          : mode === 'video'
-            ? h('p', { class: 'ytb-note' }, 'Recortar vídeo leva um pouco mais de tempo: o trecho é recodificado para cortar no segundo exato.')
-            : null
+        h(
+          'div',
+          { class: 'ytb-cut-foot' },
+          h('span', { class: 'ytb-cut-text' }, this.refs.cutError, this.refs.clock),
+          h('span', { class: 'ytb-cut-actions' }, this.refs.free, this.refs.preview)
+        ),
+        notes.length ? h('p', { class: 'ytb-note' }, notes.join(' ')) : null
       );
     }
 
@@ -685,6 +773,9 @@
 .ytb-seg { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
 .ytb-head-mark { position: absolute; top: -4px; width: 3px; height: 16px; margin-left: -1.5px; border-radius: 2px; background: var(--fg); pointer-events: none; }
 .ytb-cut-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
+.ytb-cut-text { display: flex; flex-direction: column; min-width: 0; }
+.ytb-cut-actions { display: flex; gap: 6px; flex: none; }
+.ytb-clock { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--fg); }
 .ytb-cut-info { font-size: 12.5px; color: var(--muted); }
 .ytb-cut-info.is-bad { color: var(--bad); font-weight: 500; }
 .ytb-loading { display: flex; align-items: center; gap: 12px; color: var(--muted); padding: 28px 4px; }

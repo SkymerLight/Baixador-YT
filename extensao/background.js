@@ -271,6 +271,7 @@ const actions = {
       thumbnail: meta.thumbnail || null,
       mode,
       label: meta.label || '',
+      section: section || null,
       folder: settings.folder || '',
       status: 'starting',
       percent: 0,

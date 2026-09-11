@@ -34,7 +34,8 @@ Precisa de Windows 10 ou 11.
 
 ## Uso
 
-- **No YouTube:** abra um vídeo e clique em **Baixar**, ao lado de "Compartilhar".
+- **No YouTube:** abra um vídeo e clique em **YT Baixador**, ao lado de "Compartilhar"
+  (não confunda com o "Baixar" do próprio YouTube, que é o download offline do Premium).
   Nos Shorts o botão fica flutuando no canto de baixo.
 - **Pelo ícone da extensão:** cole qualquer link do YouTube. Também mostra o histórico
   de downloads e as configurações.
@@ -42,10 +43,14 @@ Precisa de Windows 10 ou 11.
 ### Recortar um trecho
 
 Ligue **Recortar só um trecho**, digite o início e o fim (tipo `1:30` e `2:45`) e baixe.
-Só o trecho é baixado, então fica rápido. Dentro do YouTube dá para:
-- clicar em **Agora** para usar o ponto onde o vídeo está;
-- clicar em **Tocar trecho** para conferir antes de baixar (pausa sozinho no fim);
-- clicar na barrinha para pular para aquele ponto do vídeo.
+Só o trecho é baixado, então fica rápido. Antes de baixar dá para conferir:
+- **Tocar trecho**: toca só o trecho e pausa sozinho no fim;
+- **Agora**: usa o ponto que está tocando como início ou fim;
+- clicar na barrinha: pula para aquele ponto.
+
+No painel da página do vídeo a prévia usa o próprio player do YouTube (com imagem).
+No popup a prévia é só o áudio, e tem também o botão **Ouvir** para tocar livremente e
+achar o ponto certo.
 
 ### Qual áudio escolher?
 
@@ -83,6 +88,7 @@ enviadas; nela use `git pull`.
 | --- | --- |
 | "O programa auxiliar não está instalado" | Rode o `instalar.bat` e reinicie o navegador. |
 | "Recarregue a página (F5)" | A extensão foi atualizada; recarregue a aba do YouTube. |
+| "O recorte não foi aplicado... versão antiga" | Em `edge://extensions`, clique em **Recarregar** no YT Baixador. Acontece quando os arquivos mudam no disco e o navegador ainda roda a versão anterior. |
 | Erro 403 / "verificação anti-robô" | Clique em **Atualizar** no motor de download e tente de novo. |
 | "Restrição de idade" / "Vídeo privado" | O YouTube exige login para esse vídeo; não é suportado. |
 

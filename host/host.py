@@ -22,7 +22,7 @@ import urllib.request
 import uuid
 import zipfile
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 REPO = "SkymerLight/Baixador-YT"
 BRANCH = "main"
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -310,6 +310,9 @@ def cmd_info(msg):
         "m4a": format_size(best_m4a, duration) if best_m4a else audio_size,
         "opus": format_size(best_opus, duration) if best_opus else audio_size,
     }
+    # Link direto do áudio para a prévia do recorte no popup (o navegador toca sem baixar o arquivo).
+    playable = [f for f in sorted(audios, key=bitrate, reverse=True) if f.get("protocol") == "https" and f.get("url")]
+    preview = next((f for f in playable if (f.get("acodec") or "").startswith("mp4a")), None) or next(iter(playable), None)
 
     qualities = {}
     for f in formats:
@@ -338,6 +341,7 @@ def cmd_info(msg):
         "video": video,
         "audioSize": audio_size,
         "audioSizes": audio_sizes,
+        "previewUrl": preview["url"] if preview else None,
         "hasAudio": bool(best_audio) or any(f.get("acodec") not in (None, "none") for f in formats),
     }
 

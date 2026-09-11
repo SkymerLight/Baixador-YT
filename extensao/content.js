@@ -25,6 +25,8 @@ button { display: inline-flex; align-items: center; gap: 6px; height: 36px; padd
   border-radius: 18px; cursor: pointer; font: 500 14px/36px Roboto, Arial, sans-serif; white-space: nowrap;
   background: rgba(0,0,0,.05); color: #0f0f0f; }
 button:hover { background: rgba(0,0,0,.1); }
+button svg { color: #e1002d; }
+:host(.floating) button svg { color: #fff; }
 :host(.dark) button { background: rgba(255,255,255,.1); color: #f1f1f1; }
 :host(.dark) button:hover { background: rgba(255,255,255,.2); }
 :host(.floating) { position: fixed; right: 24px; bottom: 24px; z-index: 2147483000; margin: 0; }
@@ -38,8 +40,9 @@ button:hover { background: rgba(0,0,0,.1); }
     const style = document.createElement('style');
     style.textContent = BUTTON_CSS;
     const btn = document.createElement('button');
-    btn.title = 'Baixar vídeo ou áudio';
-    btn.append(YTB.icon('download', 22), 'Baixar');
+    // Nome próprio para não confundir com o botão "Baixar" do próprio YouTube (download offline do Premium).
+    btn.title = 'Baixar vídeo ou áudio com o YT Baixador';
+    btn.append(YTB.icon('download', 22), 'YT Baixador');
     btn.addEventListener('click', openPanel);
     btn.addEventListener('mouseenter', prefetch, { once: false });
     shadow.append(style, btn);
@@ -75,46 +78,7 @@ button:hover { background: rgba(0,0,0,.1); }
     document.querySelector('ytd-reel-video-renderer[is-active] video') ||
     document.querySelector('video');
 
-  const player = {
-    now: () => getVideo()?.currentTime ?? 0,
-    seek(t) {
-      const v = getVideo();
-      if (v) v.currentTime = t;
-    },
-    // Toca de `start` até `end` e pausa sozinho no fim. Devolve a função que interrompe.
-    playRange(start, end, onStop) {
-      const v = getVideo();
-      if (!v) return () => {};
-      let raf = 0;
-      let done = false;
-      const finish = (pause) => {
-        if (done) return;
-        done = true;
-        cancelAnimationFrame(raf);
-        v.removeEventListener('pause', onPause);
-        if (pause) v.pause();
-        onStop();
-      };
-      const onPause = () => finish(false);
-      const tick = () => {
-        if (v.currentTime >= end) return finish(true);
-        if (v.currentTime < start - 1) return finish(false); // a pessoa pulou para outro ponto
-        raf = requestAnimationFrame(tick);
-      };
-      v.currentTime = start;
-      v.play().catch(() => {});
-      v.addEventListener('pause', onPause);
-      raf = requestAnimationFrame(tick);
-      return () => finish(true);
-    },
-    onTime(cb) {
-      const v = getVideo();
-      if (!v) return () => {};
-      const handler = () => cb(v.currentTime);
-      v.addEventListener('timeupdate', handler);
-      return () => v.removeEventListener('timeupdate', handler);
-    },
-  };
+  const player = YTB.mediaPlayer(getVideo);
 
   // ---------------------------------------------------------- painel
 

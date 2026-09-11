@@ -15,7 +15,30 @@ darkQuery.addEventListener('change', applyTheme);
 
 $('logo').append(YTB.icon('download', 16));
 
-const panel = new YTB.Panel($('panel'), { client, embedded: true });
+// Prévia do recorte no popup: toca o áudio direto do YouTube (sem baixar o arquivo).
+function streamPlayer(url) {
+  const audio = new Audio();
+  audio.preload = 'metadata';
+  audio.src = url;
+  return {
+    ...YTB.mediaPlayer(() => audio),
+    controls: true,
+    paused: () => audio.paused,
+    play: () => audio.play().catch(() => {}),
+    pause: () => audio.pause(),
+    destroy() {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    },
+  };
+}
+
+const panel = new YTB.Panel($('panel'), {
+  client,
+  embedded: true,
+  makePlayer: (info) => (info.previewUrl ? streamPlayer(info.previewUrl) : null),
+});
 const isVideoUrl = (u) => /(youtube\.com\/(watch\?|shorts\/|live\/|embed\/)|youtu\.be\/)/.test(u || '');
 
 function showHint() {
