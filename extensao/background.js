@@ -1,6 +1,3 @@
-// YT Baixador: service worker.
-// Faz a ponte entre as telas (painel no YouTube e popup) e o host nativo (host.py + yt-dlp).
-
 const HOST_NAME = 'com.ytbaixador.host';
 const HOST_IDLE_MS = 60_000;
 const INFO_TTL_MS = 10 * 60_000;
@@ -31,8 +28,6 @@ const ready = chrome.storage.local.get('jobs').then(({ jobs: saved }) => {
   }
   updateBadge();
 });
-
-// ------------------------------------------------------------ host nativo
 
 class HostError extends Error {
   constructor(message, code) {
@@ -135,7 +130,6 @@ function onHostMessage(msg) {
   scheduleIdle();
 }
 
-// Fecha o host quando não há nada acontecendo, para não deixar um processo parado.
 function scheduleIdle() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
@@ -145,8 +139,6 @@ function scheduleIdle() {
     hostPort = null;
   }, HOST_IDLE_MS);
 }
-
-// ------------------------------------------------------------ jobs
 
 let saveTimer = null;
 function persistJobs() {
@@ -185,8 +177,6 @@ chrome.notifications.onClicked.addListener((jobId) => {
   chrome.notifications.clear(jobId);
 });
 
-// ------------------------------------------------------------ utilidades
-
 async function getSettings() {
   const { settings } = await chrome.storage.local.get('settings');
   return { ...DEFAULT_SETTINGS, ...settings };
@@ -197,7 +187,6 @@ function youtubeId(url) {
   return m ? m[1] : null;
 }
 
-// Tira parâmetros de playlist e tempo; mantém o link original se não for YouTube.
 function canonicalUrl(url) {
   const id = youtubeId(url);
   return id ? `https://www.youtube.com/watch?v=${id}` : String(url).trim();
@@ -213,8 +202,6 @@ async function getInfo(url) {
   return promise;
 }
 
-// ------------------------------------------------------------ atualização da extensão
-
 const REPO = 'SkymerLight/Baixador-YT';
 const UPDATE_TTL_MS = 6 * 60 * 60_000;
 
@@ -228,7 +215,6 @@ function isNewer(a, b) {
   return false;
 }
 
-// Compara a versão instalada com a do manifest.json no GitHub (no máximo a cada 6 horas).
 async function checkUpdate(force = false) {
   const current = chrome.runtime.getManifest().version;
   let { updateCheck } = await chrome.storage.local.get('updateCheck');
@@ -240,8 +226,6 @@ async function checkUpdate(force = false) {
   }
   return { current, latest: updateCheck.latest, available: isNewer(updateCheck.latest, current) };
 }
-
-// ------------------------------------------------------------ ações das telas
 
 const actions = {
   async status() {
@@ -306,7 +290,6 @@ const actions = {
 
   checkUpdate: ({ force }) => checkUpdate(force),
 
-  // O host baixa a versão nova do GitHub por cima da pasta da extensão; depois é só recarregar.
   async selfUpdate() {
     const result = await callHost('selfUpdate', {}, 5 * 60_000);
     await chrome.storage.local.remove('updateCheck');

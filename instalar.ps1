@@ -1,9 +1,4 @@
-﻿# YT Baixador: instala o programa auxiliar (host nativo) que a extensão usa para baixar.
-# Pode rodar de novo quantas vezes quiser: serve também para atualizar.
-
-# 'Continue' porque no PowerShell 5.1 qualquer aviso de um programa externo viraria erro fatal;
-# os passos importantes conferem $LASTEXITCODE.
-$ErrorActionPreference = 'Continue'
+﻿$ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $appDir = Join-Path $env:LOCALAPPDATA 'YTBaixador'
 $hostName = 'com.ytbaixador.host'
@@ -31,7 +26,6 @@ function Install-WithWinget($id, $name) {
 
 Write-Host 'YT Baixador: instalação do programa auxiliar' -ForegroundColor White
 
-# ---------------------------------------------------------------- Python
 Step 'Procurando o Python'
 function Find-Python {
     foreach ($candidate in @(@('py', '-3'), @('python'))) {
@@ -57,7 +51,6 @@ if (-not $python) {
 }
 Ok "Python: $python"
 
-# ---------------------------------------------------------------- arquivos
 Step "Copiando o programa para $appDir"
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 try {
@@ -65,12 +58,10 @@ try {
 } catch {
     Fail "Não consegui copiar os arquivos: $_"
 }
-# Diz ao programa auxiliar onde a extensão está, para o botão "Atualizar agora" funcionar.
 $config = [ordered]@{ extensionDir = (Join-Path $root 'extensao') }
 [IO.File]::WriteAllText((Join-Path $appDir 'config.json'), ($config | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Ok 'Arquivos copiados.'
 
-# ---------------------------------------------------------------- yt-dlp
 Step 'Instalando/atualizando o yt-dlp (num ambiente isolado, não mexe no seu Python)'
 $venvPython = Join-Path $appDir 'venv\Scripts\python.exe'
 if (-not (Test-Path $venvPython)) {
@@ -81,7 +72,6 @@ if (-not (Test-Path $venvPython)) {
 if ($LASTEXITCODE -ne 0) { Fail 'Falha ao instalar o yt-dlp. Verifique sua internet e rode de novo.' }
 Ok ("yt-dlp " + (& $venvPython -m yt_dlp --version))
 
-# ---------------------------------------------------------------- FFmpeg
 Step 'FFmpeg (junta vídeo + áudio e converte para MP3)'
 Update-SessionPath
 if (Get-Command ffmpeg -ErrorAction SilentlyContinue) {
@@ -91,7 +81,6 @@ if (Get-Command ffmpeg -ErrorAction SilentlyContinue) {
     if (Get-Command ffmpeg -ErrorAction SilentlyContinue) { Ok 'Instalado.' } else { Warn 'Instalado, mas só aparece depois de reiniciar o navegador.' }
 }
 
-# ---------------------------------------------------------------- JavaScript
 Step 'Node.js ou Deno (o YouTube exige um deles para liberar os downloads)'
 if (Get-Command node -ErrorAction SilentlyContinue) {
     Ok ('Node.js ' + (node --version))
@@ -102,7 +91,6 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Ok 'Deno instalado.'
 }
 
-# ---------------------------------------------------------------- navegadores
 Step 'Registrando nos navegadores'
 $manifestPath = Join-Path $appDir "$hostName.json"
 $manifest = [ordered]@{
@@ -125,7 +113,6 @@ foreach ($name in $browsers.Keys) {
     Ok $name
 }
 
-# ---------------------------------------------------------------- teste
 Step 'Testando'
 & $venvPython (Join-Path $appDir 'testar.py')
 if ($LASTEXITCODE -ne 0) { Fail "O teste falhou. Veja o arquivo host.log em $appDir" }

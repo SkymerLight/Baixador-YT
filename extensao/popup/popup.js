@@ -1,5 +1,3 @@
-// YT Baixador: popup da barra de ferramentas.
-
 const client = YTB.createClient();
 const $ = (id) => document.getElementById(id);
 const app = $('app');
@@ -15,7 +13,6 @@ darkQuery.addEventListener('change', applyTheme);
 
 $('logo').append(YTB.icon('download', 16));
 
-// Prévia do recorte no popup: toca o áudio direto do YouTube (sem baixar o arquivo).
 function streamPlayer(url) {
   const audio = new Audio();
   audio.preload = 'metadata';
@@ -60,16 +57,12 @@ $('url-form').addEventListener('submit', (e) => {
 });
 $('url').addEventListener('paste', () => setTimeout(() => openUrl($('url').value), 0));
 
-// ------------------------------------------------------------ histórico
-
 client.subscribe((jobs) => {
   const list = [...jobs.values()].sort((a, b) => b.createdAt - a.createdAt);
   $('history').hidden = !list.length;
   $('history-list').replaceChildren(...list.map((j) => YTB.renderJob(j, client)));
 });
 $('clear').addEventListener('click', () => client.request('clearHistory'));
-
-// ------------------------------------------------------------ configurações e status
 
 $('toggle-settings').addEventListener('click', () => ($('settings').hidden = !$('settings').hidden));
 
@@ -141,8 +134,6 @@ $('update-engine').addEventListener('click', async () => {
   btn.textContent = 'Atualizar';
 });
 
-// ------------------------------------------------------------ atualização da extensão
-
 const currentVersion = chrome.runtime.getManifest().version;
 $('version').textContent = `v${currentVersion}`;
 
@@ -168,7 +159,6 @@ $('update-now').addEventListener('click', async () => {
   btn.textContent = 'Atualizando…';
   try {
     const { version } = await client.request('selfUpdate');
-    // A extensão recarrega sozinha logo em seguida e o popup fecha.
     $('update-text').textContent = `Atualizado para ${version}! Reabra o popup e recarregue as abas do YouTube.`;
     btn.hidden = true;
   } catch (err) {
@@ -177,8 +167,6 @@ $('update-now').addEventListener('click', async () => {
     btn.textContent = 'Atualizar agora';
   }
 });
-
-// ------------------------------------------------------------ crédito
 
 $('credit').addEventListener('click', async () => {
   try {
@@ -189,8 +177,6 @@ $('credit').addEventListener('click', async () => {
     setTimeout(() => (text.innerHTML = old), 1500);
   } catch {}
 });
-
-// ------------------------------------------------------------ início
 
 (async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

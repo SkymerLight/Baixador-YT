@@ -1,5 +1,3 @@
-// YT Baixador: coloca o botão "Baixar" na página do YouTube e abre o painel de download.
-
 (() => {
   const client = YTB.createClient();
   let modal = null;
@@ -16,8 +14,6 @@
     const url = currentVideoUrl();
     if (url) client.request('info', { url }).catch(() => {});
   }
-
-  // ---------------------------------------------------------- botão
 
   const BUTTON_CSS = `
 :host { display: inline-flex; align-self: center; margin-left: 8px; flex: none; }
@@ -40,7 +36,6 @@ button svg { color: #e1002d; }
     const style = document.createElement('style');
     style.textContent = BUTTON_CSS;
     const btn = document.createElement('button');
-    // Nome próprio para não confundir com o botão "Baixar" do próprio YouTube (download offline do Premium).
     btn.title = 'Baixar vídeo ou áudio com o YT Baixador';
     btn.append(YTB.icon('download', 22), 'YT Baixador');
     btn.addEventListener('click', openPanel);
@@ -57,7 +52,6 @@ button svg { color: #e1002d; }
       host?.remove();
       return;
     }
-    // No vídeo normal o botão fica junto de "Compartilhar"; nos Shorts, flutuando no canto.
     const isShorts = location.pathname.startsWith('/shorts/');
     const target = isShorts
       ? document.body
@@ -71,16 +65,12 @@ button svg { color: #e1002d; }
     if (host.parentElement !== target) target.append(host);
   }
 
-  // ---------------------------------------------------------- player (prévia do recorte)
-
   const getVideo = () =>
     document.querySelector('#movie_player video.html5-main-video') ||
     document.querySelector('ytd-reel-video-renderer[is-active] video') ||
     document.querySelector('video');
 
   const player = YTB.mediaPlayer(getVideo);
-
-  // ---------------------------------------------------------- painel
 
   function openPanel() {
     const url = currentVideoUrl();
@@ -99,12 +89,10 @@ button svg { color: #e1002d; }
   animation: ytb-pop .18s ease; }
 @keyframes ytb-pop { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
 `;
-    // Fica no canto (em cima das recomendações) para o vídeo continuar visível durante a prévia do recorte.
     const root = document.createElement('div');
     root.className = `ytb-root ytb-modal${isDark() ? ' ytb-dark' : ''}`;
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-label', 'Baixar vídeo');
-    // Não deixa as teclas digitadas no painel virarem atalhos do YouTube (ex.: "1" pula para 10% do vídeo).
     for (const type of ['keydown', 'keypress', 'keyup']) {
       root.addEventListener(type, (e) => e.key !== 'Escape' && e.stopPropagation());
     }
@@ -131,8 +119,6 @@ button svg { color: #e1002d; }
       closePanel();
     }
   }
-
-  // ---------------------------------------------------------- navegação do YouTube (SPA)
 
   let scheduled = false;
   const schedule = () => {

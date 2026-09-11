@@ -1,11 +1,7 @@
-// YT Baixador: interface compartilhada entre o painel dentro do YouTube e o popup.
-// Expõe o objeto global YTB (cliente de mensagens, CSS e o painel de download).
-
 (() => {
   if (globalThis.YTB) return;
   const YTB = (globalThis.YTB = {});
 
-  // size: 'm4a'/'opus' usa o tamanho real do formato; kbps: estimativa pela duração.
   const AUDIO_OPTIONS = [
     { value: 'm4a', name: 'M4A', sub: 'Melhor qualidade', size: 'm4a',
       note: 'Áudio original do YouTube, sem conversão nenhuma. M4A é o "MP4 de áudio" e toca em quase tudo.' },
@@ -22,8 +18,6 @@
       note: 'Igual ao WAV, mas comprimido sem perda (arquivo menor). Não melhora o som do original.' },
   ];
   const ACTIVE = new Set(['starting', 'downloading', 'processing']);
-
-  // ---------------------------------------------------------- cliente
 
   YTB.createClient = () => {
     let port = null;
@@ -64,7 +58,6 @@
         port = null;
         for (const req of pending.values()) req.reject(new Error('Conexão com a extensão perdida. Tente de novo.'));
         pending.clear();
-        // O service worker dorme quando fica ocioso; reconecta se alguém ainda está olhando.
         if (listeners.size) setTimeout(() => listeners.size && tryEnsure(), 1000);
       });
       return port;
@@ -98,8 +91,6 @@
     };
   };
 
-  // ---------------------------------------------------------- formatação
-
   const fmt = (YTB.fmt = {
     bytes(n) {
       if (!n) return '';
@@ -121,7 +112,6 @@
     },
   });
 
-  // "1:30" -> 90, "1:02:03" -> 3723, "90" -> 90. Vazio -> null, inválido -> NaN.
   function parseTime(text) {
     const str = String(text ?? '').trim().replace(',', '.');
     if (!str) return null;
@@ -168,16 +158,12 @@
   };
   YTB.icon = icon;
 
-  // ---------------------------------------------------------- player da prévia
-
-  // Adaptador sobre um <video>/<audio>: usado com o player do YouTube (na página) e com o áudio do popup.
   YTB.mediaPlayer = (getMedia) => ({
     now: () => getMedia()?.currentTime ?? 0,
     seek(t) {
       const m = getMedia();
       if (m) m.currentTime = t;
     },
-    // Toca de `start` até `end` e pausa sozinho no fim. Devolve a função que interrompe.
     playRange(start, end, onStop) {
       const m = getMedia();
       if (!m) return () => {};
@@ -194,7 +180,7 @@
       const onPause = () => finish(false);
       const tick = () => {
         if (m.currentTime >= end) return finish(true);
-        if (m.currentTime < start - 1) return finish(false); // a pessoa pulou para outro ponto
+        if (m.currentTime < start - 1) return finish(false);
         raf = requestAnimationFrame(tick);
       };
       m.currentTime = start;
@@ -212,8 +198,6 @@
       return () => events.forEach((e) => m.removeEventListener(e, handler));
     },
   });
-
-  // ---------------------------------------------------------- cartão de download
 
   function statusText(job) {
     switch (job.status) {
@@ -275,10 +259,6 @@
     );
   };
 
-  // ---------------------------------------------------------- painel
-
-  // player: adaptador do YTB.mediaPlayer (na página do YouTube).
-  // makePlayer(info): cria um player para cada vídeo carregado (no popup); ele tem controls/play/pause/destroy.
   YTB.Panel = class {
     constructor(root, { client, onClose, embedded = false, player = null, makePlayer = null }) {
       this.root = root;
@@ -336,9 +316,6 @@
       this.render();
     }
 
-    // ------------------------------------------------ recorte
-
-    // { start, end } em segundos, null se o recorte está desligado, ou { error } se está inválido.
     cutRange() {
       const { cut, info } = this.state;
       if (!cut?.on) return null;
@@ -357,7 +334,6 @@
       else this.refreshCut();
     }
 
-    // Atualiza só as partes que dependem do trecho, sem recriar os campos (senão perde o foco ao digitar).
     refreshCut() {
       const r = this.refs;
       const range = this.cutRange();
@@ -391,7 +367,6 @@
       }
     }
 
-    // Toca/pausa livremente (só no popup), para achar o ponto e usar o botão "Agora".
     toggleFree() {
       if (this.stopPreview) this.stopPreview();
       if (this.player.paused()) this.player.play();
@@ -419,8 +394,6 @@
       btn.replaceChildren(icon(playing ? 'pause' : 'play', 18), playing ? 'Pausar' : 'Tocar trecho');
     }
 
-    // ------------------------------------------------ download
-
     async start() {
       const { info, mode, quality, audio } = this.state;
       const range = this.cutRange();
@@ -442,8 +415,6 @@
           section: range || undefined,
           meta: { title: info.title, thumbnail: info.thumbnail, label },
         });
-        // O popup lê os arquivos novos do disco, mas o service worker só troca ao recarregar a extensão.
-        // Se ele for antigo, o recorte some no caminho: cancela em vez de baixar o vídeo inteiro.
         if (range && !job?.section) {
           this.client.request('cancel', { jobId: job.id }).catch(() => {});
           alert('O recorte não foi aplicado porque o navegador ainda está rodando a versão antiga da extensão.\n\n' +
@@ -454,8 +425,6 @@
       }
       this.set({ starting: false });
     }
-
-    // ------------------------------------------------ render
 
     header() {
       return h(
@@ -702,8 +671,6 @@
     if (q >= 720) return 'HD';
     return 'SD';
   }
-
-  // ---------------------------------------------------------- estilo
 
   YTB.css = `
 .ytb-root {

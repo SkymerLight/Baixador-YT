@@ -1,11 +1,3 @@
-"""Testa o host sem precisar do navegador.
-
-    python testar.py                 -> só verifica se o host responde
-    python testar.py LINK            -> mostra as qualidades do vídeo
-    python testar.py LINK 720        -> baixa o vídeo em 720p
-    python testar.py LINK mp3-320    -> baixa só o áudio
-"""
-
 import json
 import os
 import struct

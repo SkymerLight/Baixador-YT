@@ -1,7 +1,4 @@
-﻿# YT Baixador: remove o programa auxiliar e o registro nos navegadores.
-# Não apaga seus downloads, nem o FFmpeg/Node/Deno (outros programas podem usar).
-
-$hostName = 'com.ytbaixador.host'
+﻿$hostName = 'com.ytbaixador.host'
 $appDir = Join-Path $env:LOCALAPPDATA 'YTBaixador'
 
 foreach ($key in @(

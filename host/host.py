@@ -1,11 +1,3 @@
-"""YT Baixador: host nativo.
-
-O navegador inicia este processo quando a extensão precisa dele (Native Messaging).
-Ele recebe comandos em JSON pela entrada padrão e usa o yt-dlp para ler as
-informações do vídeo e fazer os downloads. Só a extensão registrada no manifesto
-do host consegue conversar com ele.
-"""
-
 import glob
 import io
 import json
@@ -38,7 +30,6 @@ def _mp3(kbps):
     return ["-f", "ba/b", "-x", "--audio-format", "mp3", "--audio-quality", f"{kbps}K"]
 
 
-# formato -> (argumentos do yt-dlp, dá para embutir a capa?)
 AUDIO_FORMATS = {
     "m4a": (["-f", "ba[ext=m4a]/ba/b", "-x", "--audio-format", "m4a"], True),
     "opus": (["-f", "ba[acodec=opus]/ba/b", "-x", "--audio-format", "opus"], True),
@@ -50,7 +41,6 @@ AUDIO_FORMATS = {
     "flac": (["-f", "ba/b", "-x", "--audio-format", "flac"], True),
 }
 
-# Arquivos da raiz do projeto que a atualização automática também renova.
 ROOT_FILES = ["instalar.bat", "instalar.ps1", "desinstalar.bat", "desinstalar.ps1", "LEIAME.md"]
 HOST_FILES = ["host.py", "host.bat", "testar.py"]
 
@@ -86,8 +76,6 @@ class HostError(Exception):
     pass
 
 
-# ---------------------------------------------------------------- utilidades
-
 def log(*parts):
     try:
         if os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 1_000_000:
@@ -99,7 +87,6 @@ def log(*parts):
 
 
 def refresh_path():
-    """O navegador pode ter sido aberto antes do FFmpeg ser instalado; relê o PATH do registro."""
     if sys.platform != "win32":
         return
     import winreg
@@ -164,8 +151,6 @@ def child_env():
 
 
 def run(args, timeout, text=False):
-    # stdin=DEVNULL é obrigatório: no Windows, um filho que herda o pipe de entrada
-    # trava enquanto a thread principal está lendo mensagens dele.
     return subprocess.run(args, capture_output=True, text=text, stdin=subprocess.DEVNULL,
                           creationflags=NO_WINDOW, env=child_env(), timeout=timeout)
 
@@ -217,8 +202,6 @@ def ytdlp_version(refresh=False):
     return _ytdlp_version
 
 
-# ---------------------------------------------------------------- mensagens
-
 if sys.platform == "win32":
     import msvcrt
 
@@ -244,8 +227,6 @@ def read_message():
     return json.loads(sys.stdin.buffer.read(size).decode("utf-8"))
 
 
-# ---------------------------------------------------------------- comandos
-
 def cmd_ping(_msg):
     js_name, _ = find_js_runtime()
     can_update, reason = self_update_status()
@@ -260,7 +241,6 @@ def cmd_ping(_msg):
 
 
 def parse_section(section):
-    """{"start": 90, "end": 165} -> (90.0, 165.0), ou None se não for recorte."""
     if not section:
         return None
     try:
@@ -301,7 +281,7 @@ def cmd_info(msg):
     duration = data.get("duration") or 0
     formats = [f for f in data.get("formats") or [] if not f.get("has_drm")]
     audios = [f for f in formats if f.get("vcodec") == "none" and f.get("acodec") not in (None, "none")]
-    bitrate = lambda f: f.get("abr") or f.get("tbr") or 0  # noqa: E731
+    bitrate = lambda f: f.get("abr") or f.get("tbr") or 0
     best_audio = max(audios, key=bitrate, default=None)
     audio_size = format_size(best_audio, duration) if best_audio else 0
     best_m4a = max((f for f in audios if (f.get("acodec") or "").startswith("mp4a")), key=bitrate, default=None)
@@ -310,7 +290,6 @@ def cmd_info(msg):
         "m4a": format_size(best_m4a, duration) if best_m4a else audio_size,
         "opus": format_size(best_opus, duration) if best_opus else audio_size,
     }
-    # Link direto do áudio para a prévia do recorte no popup (o navegador toca sem baixar o arquivo).
     playable = [f for f in sorted(audios, key=bitrate, reverse=True) if f.get("protocol") == "https" and f.get("url")]
     preview = next((f for f in playable if (f.get("acodec") or "").startswith("mp4a")), None) or next(iter(playable), None)
 
@@ -318,7 +297,6 @@ def cmd_info(msg):
     for f in formats:
         if f.get("vcodec") in (None, "none") or not f.get("height"):
             continue
-        # A "qualidade" é o menor lado: um Short 1080x1920 é 1080p.
         q = min(f["height"], f.get("width") or f["height"])
         entry = qualities.setdefault(q, {"q": q, "fps": 0, "size": 0})
         entry["fps"] = max(entry["fps"], round(f.get("fps") or 0))
@@ -382,7 +360,6 @@ def cmd_download(msg):
         "--print", "after_move:[YTBFILE]%(filepath)s",
     ]
 
-    # Recorte: o yt-dlp baixa só o trecho pedido, sem precisar do vídeo inteiro.
     section = parse_section(msg.get("section"))
     suffix = f" ({time_label(section[0])} a {time_label(section[1])})" if section else ""
     if section:
@@ -395,7 +372,6 @@ def cmd_download(msg):
         if cover:
             args += ["--embed-thumbnail", "--convert-thumbnails", "jpg"]
         if section and fmt != "m4a":
-            # Recortar o áudio Opus (WebM) sem isso gera o dobro da duração; o M4A já corta certo.
             args += ["--force-keyframes-at-cuts"]
     else:
         quality = int(msg.get("quality") or 0)
@@ -408,7 +384,6 @@ def cmd_download(msg):
         if sort:
             args += ["-S", ",".join(sort)]
         if section:
-            # Corta no segundo exato (recodifica só o trecho); sem isso o corte cai no keyframe mais próximo.
             args += ["--force-keyframes-at-cuts"]
 
     args += ["--", url]
@@ -465,7 +440,7 @@ def run_job(job):
             text, raw = friendly_error("".join(stderr_lines))
             log("download falhou:", raw)
             send({"event": "error", "jobId": job.id, "error": text, "detail": raw})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log("erro no job:", repr(exc))
         send({"event": "error", "jobId": job.id, "error": str(exc)})
     finally:
@@ -536,8 +511,6 @@ def cmd_update(_msg):
     return {"ytdlp": ytdlp_version(refresh=True)}
 
 
-# ---------------------------------------------------------------- atualização automática
-
 def load_config():
     try:
         with open(CONFIG_FILE, encoding="utf-8-sig") as f:
@@ -556,7 +529,6 @@ def self_update_status():
 
 
 def extract_folder(zf, prefix, folder, dest):
-    """Extrai a pasta `folder` do zip para `dest`, sem deixar nenhum arquivo escapar de `dest`."""
     base = prefix + folder + "/"
     dest_real = os.path.realpath(dest)
     extracted = set()
@@ -575,7 +547,6 @@ def extract_folder(zf, prefix, folder, dest):
 
 
 def mirror_folder(src, dest, keep):
-    """Copia `src` por cima de `dest` e apaga de `dest` o que não existe mais na versão nova."""
     for dirpath, _, files in os.walk(src):
         for name in files:
             rel = os.path.relpath(os.path.join(dirpath, name), src)
@@ -606,7 +577,6 @@ def cmd_self_update(_msg):
     except (OSError, zipfile.BadZipFile) as exc:
         raise HostError(f"Não consegui baixar a atualização do GitHub: {exc}")
     prefix = zf.namelist()[0].split("/")[0] + "/"
-    # utf-8-sig: aceita arquivos salvos com BOM (o Bloco de Notas antigo e o PowerShell 5 fazem isso).
     try:
         new_manifest = json.loads(zf.read(prefix + "extensao/manifest.json").decode("utf-8-sig"))
         with open(os.path.join(ext_dir, "manifest.json"), encoding="utf-8-sig") as f:
@@ -661,7 +631,7 @@ def handle(msg):
         send({"id": req_id, "ok": False, "error": str(exc)})
     except subprocess.TimeoutExpired:
         send({"id": req_id, "ok": False, "error": "Demorou demais para responder. Tente de novo."})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log("erro:", msg.get("cmd"), repr(exc))
         send({"id": req_id, "ok": False, "error": f"Erro inesperado: {exc}"})
 
