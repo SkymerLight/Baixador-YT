@@ -536,7 +536,7 @@ def cmd_update(_msg):
 
 def load_config():
     try:
-        with open(CONFIG_FILE, encoding="utf-8") as f:
+        with open(CONFIG_FILE, encoding="utf-8-sig") as f:
             return json.load(f)
     except (OSError, ValueError):
         return {}
@@ -602,11 +602,13 @@ def cmd_self_update(_msg):
     except (OSError, zipfile.BadZipFile) as exc:
         raise HostError(f"Não consegui baixar a atualização do GitHub: {exc}")
     prefix = zf.namelist()[0].split("/")[0] + "/"
+    # utf-8-sig: aceita arquivos salvos com BOM (o Bloco de Notas antigo e o PowerShell 5 fazem isso).
     try:
-        new_manifest = json.loads(zf.read(prefix + "extensao/manifest.json").decode("utf-8"))
-        with open(os.path.join(ext_dir, "manifest.json"), encoding="utf-8") as f:
+        new_manifest = json.loads(zf.read(prefix + "extensao/manifest.json").decode("utf-8-sig"))
+        with open(os.path.join(ext_dir, "manifest.json"), encoding="utf-8-sig") as f:
             old_manifest = json.load(f)
-    except (KeyError, ValueError, OSError):
+    except (KeyError, ValueError, OSError) as exc:
+        log("manifest inválido na atualização:", repr(exc))
         raise HostError("Pacote de atualização inválido.")
     if new_manifest.get("key") != old_manifest.get("key"):
         raise HostError("O pacote do GitHub não é desta extensão.")
