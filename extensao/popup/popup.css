@@ -1,0 +1,41 @@
+html, body { margin: 0; }
+body { width: 400px; min-height: 180px; }
+#app { background: var(--bg); padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+[hidden] { display: none !important; }
+
+.top { display: flex; align-items: center; justify-content: space-between; }
+
+.banner { padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+.banner.is-warn { background: rgba(255, 170, 0, .15); }
+.banner.is-bad { background: rgba(225, 0, 45, .12); }
+
+.settings { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; border-radius: 12px; background: var(--chip); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.row-text { display: flex; flex-direction: column; min-width: 0; }
+.row-text small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row.check .row-text small { white-space: normal; }
+.row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+
+.update { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 12px;
+  border-radius: 12px; font-size: 13px; font-weight: 500; background: rgba(225, 0, 45, .1); }
+
+.credit { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.credit-btn { display: inline-flex; align-items: center; gap: 7px; margin-right: auto; padding: 4px 8px 4px 4px !important;
+  border-radius: 8px; color: var(--muted) !important; }
+.credit-btn:hover { background: var(--chip); color: var(--fg) !important; }
+.credit-btn b { color: var(--fg); font-weight: 600; }
+.version { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.url-form { display: flex; gap: 8px; }
+.url-form input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 18px; font: inherit;
+  color: var(--fg); background: var(--chip); border: 1.5px solid transparent; outline: none; }
+.url-form input:focus { border-color: var(--accent); }
+
+.hint { margin: 4px 2px; color: var(--muted); }
+
+.history { display: flex; flex-direction: column; gap: 8px; }
+.history-head { display: flex; align-items: center; justify-content: space-between; }
+.history-head h2 { margin: 0; font-size: 14px; }
+.link { color: var(--muted) !important; font-size: 12.5px; }
+.link:hover { color: var(--fg) !important; text-decoration: underline; }

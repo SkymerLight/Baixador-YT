@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+host.log
+host.log.old
