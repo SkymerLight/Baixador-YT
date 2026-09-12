@@ -338,16 +338,18 @@ namespace YTBaixador
                 web.Headers["User-Agent"] = "YTBaixador-Instalador/" + Version;
                 sums = web.DownloadString(sumsUrl);
             }
-            string line = sums.Split('\n').FirstOrDefault(l => l.Contains(name)) ?? sums;
-            System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(line, "[0-9a-fA-F]{64}");
-            if (!match.Success) throw new Exception("Não encontrei o código de verificação de " + name + ".");
+            System.Text.RegularExpressions.Regex hex = new System.Text.RegularExpressions.Regex("[0-9a-fA-F]{64}");
+            string line = sums.Split('\n').FirstOrDefault(l => l.Contains(name) && hex.IsMatch(l));
+            System.Text.RegularExpressions.MatchCollection all = hex.Matches(sums);
+            string expected = line != null ? hex.Match(line).Value : all.Count == 1 ? all[0].Value : null;
+            if (expected == null) throw new Exception("Não encontrei o código de verificação de " + name + ".");
             string actual;
             using (System.Security.Cryptography.SHA256 sha = System.Security.Cryptography.SHA256.Create())
             using (FileStream stream = File.OpenRead(file))
             {
                 actual = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "");
             }
-            if (!actual.Equals(match.Value, StringComparison.OrdinalIgnoreCase))
+            if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
             {
                 File.Delete(file);
                 throw new Exception("O arquivo " + name + " baixado não confere com o original (SHA-256 diferente). Por segurança ele foi apagado. Tente de novo.");
